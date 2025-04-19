@@ -2,14 +2,13 @@
 import os
 import json
 import time
-import random
 from tqdm import tqdm
 from src.east import detect_text as east_detect_text
 from src.east import process_directory as east_process_directory
 from src.tesseract import detect_text as tesseract_detect_text
 from src.eval import evaluate_ocr_accuracy, run_evaluation
 
-def process_directory_with_tqdm(directory_path, detector_func, min_conf=0, output_file=None, model_path=None, max_images=None):
+def process_directory_with_tqdm(directory_path, detector_func, min_conf=0, output_file=None, model_path=None):
     """
     Process all images in a directory with progress bar using tqdm.
     
@@ -19,7 +18,6 @@ def process_directory_with_tqdm(directory_path, detector_func, min_conf=0, outpu
         min_conf (int): Minimum confidence threshold for text detection
         output_file (str, optional): Path to save results as JSON
         model_path (str, optional): Path to EAST model (only for east detector)
-        max_images (int, optional): Maximum number of images to process
         
     Returns:
         dict: Dictionary with image_id as key and list of detected text as value
@@ -43,11 +41,7 @@ def process_directory_with_tqdm(directory_path, detector_func, min_conf=0, outpu
         if file_ext in image_extensions:
             image_files.append(filename)
     
-    # Limit number of images if specified
-    if max_images and max_images < len(image_files):
-        # Use consistently random selection for reproducibility
-        random.seed(42)  
-        image_files = random.sample(image_files, max_images)
+    print(f"Found {len(image_files)} images to process")
     
     # Process images with progress bar
     for filename in tqdm(image_files, desc="Processing images", unit="image"):
@@ -122,8 +116,6 @@ def main():
     # Parse command line arguments
     import argparse
     parser = argparse.ArgumentParser(description='Evaluate OCR methods')
-    parser.add_argument('--max-images', type=int, default=10, 
-                        help='Maximum number of images to process (default: 10)')
     args = parser.parse_args()
     
     # Create test_output directory if it doesn't exist
@@ -144,7 +136,7 @@ def main():
     }
     
     # Test standard Tesseract OCR
-    print(f"\n===== Evaluating Standard Tesseract OCR (max {args.max_images} images) =====")
+    print("\n===== Evaluating Standard Tesseract OCR (all images in 'images' folder) =====")
     for conf in tqdm(conf_thresholds, desc="Testing confidence thresholds", unit="level"):
         tqdm.write(f"\n=== Testing with minimum confidence: {conf} ===")
         
@@ -154,8 +146,7 @@ def main():
         # Process images with progress bar
         start_time = time.time()
         ocr_results = process_directory_with_tqdm("images", tesseract_detect_text, 
-                                                 min_conf=conf, output_file=conf_output,
-                                                 max_images=args.max_images)
+                                                 min_conf=conf, output_file=conf_output)
         ocr_time = time.time() - start_time
         
         tqdm.write(f"OCR processing completed in {ocr_time:.2f} seconds.")
@@ -184,7 +175,7 @@ def main():
     
     # Test EAST + Tesseract OCR
     if east_model_path:
-        print(f"\n===== Evaluating EAST + Tesseract OCR (max {args.max_images} images) =====")
+        print("\n===== Evaluating EAST + Tesseract OCR (all images in 'images' folder) =====")
         for conf in tqdm(conf_thresholds, desc="Testing confidence thresholds", unit="level"):
             tqdm.write(f"\n=== Testing with minimum confidence: {conf} ===")
             
@@ -195,8 +186,7 @@ def main():
             start_time = time.time()
             ocr_results = process_directory_with_tqdm("images", east_detect_text, 
                                                     min_conf=conf, output_file=conf_output,
-                                                    model_path=east_model_path,
-                                                    max_images=args.max_images)
+                                                    model_path=east_model_path)
             ocr_time = time.time() - start_time
             
             tqdm.write(f"OCR processing completed in {ocr_time:.2f} seconds.")
