@@ -54,7 +54,7 @@ python test_single_image.py <image_path>
 ### Run comparative testing
 
 ```bash
-python test_east_accuracy.py --max-images <num_images>
+python test_east_accuracy.py --max-images <num_images> --threads <num_threads>
 ```
 
 ## Evaluation Results
@@ -62,13 +62,15 @@ python test_east_accuracy.py --max-images <num_images>
 When testing on a small set of images, we found:
 
 1. **Standard Tesseract OCR**:
-   - Variable accuracy depending on image quality
-   - Best results with confidence threshold of 60-80%
-   - Simple and reasonably effective for clean, clear text
+   - detector confidence: 80%
+   - accuracy: 7.58%
+   - ocr time: 98s
+   - eval time: 9.6s
 
 2. **EAST + Tesseract OCR**:
-   - Shows promise in detecting text regions that standard Tesseract misses
-   - Currently produces more fragmented text output
-   - Requires further tuning for better results
+   - detector confidence: 80%
+   - accuracy: 12.05%
+   - ocr time: 2487s
+   - eval time: 8.5s
 
 Based on our experiments, the standard Tesseract approach currently produces better recognition results overall, but the EAST detector shows potential for detecting text in more challenging images.
