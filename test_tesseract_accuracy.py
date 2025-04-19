@@ -73,7 +73,7 @@ def main():
         tqdm.write(f"\n=== Testing with minimum confidence: {conf} ===")
         
         # Set output filename for this confidence level
-        conf_output = f"test_output/ocr_results_conf{conf}.json"
+        conf_output = f"test_output/tesseract_ocr_results_conf{conf}.json"
         
         # Process images with progress bar
         start_time = time.time()
@@ -85,7 +85,7 @@ def main():
         
         # Evaluate results
         start_time = time.time()
-        eval_output = f"test_output/eval_results_conf{conf}.json"
+        eval_output = f"test_output/tesseract_eval_results_conf{conf}.json"
         
         tqdm.write(f"Evaluating results...")
         eval_results = run_evaluation(conf_output, eval_output, min_confidence=0.5)
@@ -105,7 +105,7 @@ def main():
         tqdm.write(f"Correct matches: {eval_results['correct_matches']}/{eval_results['total_samples']}")
     
     # Save summary results
-    with open("test_output/accuracy_summary.json", "w") as f:
+    with open("test_output/tesseract_accuracy_summary.json", "w") as f:
         json.dump(results, f, indent=2)
     
     # Print final summary
