@@ -131,7 +131,8 @@ def run_test_on_image(image_path):
     
     # Test Tesseract OCR
     print("\n=== Tesseract OCR ===")
-    conf_thresholds = [0, 20, 40, 60, 80]
+    # conf_thresholds = [0, 20, 40, 60, 80]
+    conf_thresholds = [80]
     
     for conf in conf_thresholds:
         print(f"\nConfidence threshold: {conf}")

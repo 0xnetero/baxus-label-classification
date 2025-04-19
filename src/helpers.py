@@ -5,11 +5,86 @@ def cleanup_text(text):
 
 from src.wine_names import WINE_NAMES
 import re
-from difflib import SequenceMatcher
+from difflib import SequenceMatcher, get_close_matches
+
+# Helper functions for the improved wine matching
+def calculate_token_match_score(tokens, target_text):
+    """
+    Calculate a score based on how well individual tokens match the target text.
+    
+    Args:
+        tokens (list): List of token strings
+        target_text (str): The target text to match against
+        
+    Returns:
+        float: Score between 0 and 1 representing token match quality
+    """
+    target_words = target_text.split()
+    
+    # Track matches for each token
+    token_scores = []
+    for token in tokens:
+        # Check if token is a complete word in target (exact match)
+        if token in target_words:
+            token_scores.append(1.0)
+        # Check if token is a substring of target
+        elif token in target_text:
+            token_scores.append(0.8)
+        else:
+            # Get best fuzzy match for this token
+            best_word_match = max([SequenceMatcher(None, token, word).ratio() for word in target_words], default=0)
+            token_scores.append(best_word_match)
+    
+    # Average all token scores
+    return sum(token_scores) / len(token_scores) if token_scores else 0
+
+def calculate_match_bonuses(tokens, target_text, original_wine):
+    """
+    Calculate bonus scores for specific patterns in the match.
+    
+    Args:
+        tokens (list): List of token strings
+        target_text (str): The normalized target text
+        original_wine (str): The original wine name with formatting
+        
+    Returns:
+        float: Bonus score between 0 and 1
+    """
+    bonus = 0
+    
+    # Check for numerical matches (years, etc.)
+    token_numbers = [int(re.search(r'\d+', t).group()) for t in tokens if re.search(r'\d+', t)]
+    target_numbers = [int(n) for n in re.findall(r'\d+', target_text)]
+    
+    # Bonus for matching numbers
+    if token_numbers and target_numbers and any(n in target_numbers for n in token_numbers):
+        bonus += 0.25
+    
+    # Bonus for "year" keyword
+    if any("year" in t for t in tokens) and "year" in target_text:
+        bonus += 0.15
+    
+    # Bonus for "small batch" phrase
+    if any("small" in t for t in tokens) and any("batch" in t for t in tokens) and "small batch" in target_text:
+        bonus += 0.2
+    
+    # Bonus for brand keywords
+    important_brands = ["buffalo", "weller", "blanton", "stagg", "bourbon", "whiskey", "whisky"]
+    for brand in important_brands:
+        if any(brand in t for t in tokens) and brand in target_text:
+            bonus += 0.15
+            break
+    
+    # Specific bonus for "Original"
+    if any("original" in t for t in tokens) and "original" in target_text:
+        bonus += 0.15
+    
+    # Cap the bonus at 0.5
+    return min(0.5, bonus)
 
 def find_best_wine_match(tokens, min_score=0.4):
     """
-    Find the best matching wine name from a list of text tokens.
+    Find the best matching wine name from a list of text tokens using difflib.
     
     Args:
         tokens (list): List of strings/tokens to match against wine names
@@ -52,238 +127,86 @@ def find_best_wine_match(tokens, min_score=0.4):
             if wine == matching_name:
                 return wine, 0.95  # High confidence for direct mapping
     
-    # Join tokens with space for combined matching
+    # Join tokens for combined matching
     combined_text = ' '.join(cleaned_tokens)
+    
+    # Prepare normalized versions of all wine names for comparison
+    normalized_wines = []
+    for wine in WINE_NAMES:
+        normalized = re.sub(r'[^\w\s]', '', wine.lower()).strip()
+        normalized_wines.append((normalized, wine))
+    
+    # Create a list of wine name strings for difflib.get_close_matches
+    wine_strings = [w[0] for w in normalized_wines]
+    
+    # Try to find close matches for the combined text
+    close_matches = get_close_matches(combined_text, wine_strings, n=5, cutoff=min_score)
     
     best_match = None
     best_score = 0
-    best_match_candidates = []
+    match_candidates = []
     
-    # Check for abbreviations and expand them
-    # Common abbreviations in the domain
-    abbrev_dict = {
-        'btac': ['buffalo', 'trace', 'antique', 'collection'],
-    }
-    
-    # Expand abbreviations if present
-    expanded_tokens = list(cleaned_tokens)  # Make a copy
-    for i, token in enumerate(cleaned_tokens):
-        if token.lower() in abbrev_dict:
-            expanded_tokens.extend(abbrev_dict[token.lower()])
-    
-    # Look for partial word matches like "cram" for "cream"
-    partial_word_matches = {}
-    for token in cleaned_tokens:
-        if len(token) >= 3:  # Only consider tokens of sufficient length
-            # Find potential partial matches
-            for wine_name in WINE_NAMES:
-                wine_words = re.sub(r'[^\w\s]', '', wine_name.lower()).strip().split()
+    # If we have close matches from difflib, evaluate them further
+    if close_matches:
+        for match_text in close_matches:
+            # Find the original wine name for this normalized text
+            original_wine = next((w[1] for w in normalized_wines if w[0] == match_text), None)
+            if original_wine:
+                # Calculate similarity score using SequenceMatcher
+                similarity = SequenceMatcher(None, combined_text, match_text).ratio()
                 
-                for word in wine_words:
-                    # If token is a substring of a word in the wine name
-                    if token in word and len(token) >= len(word) * 0.6:
-                        if token not in partial_word_matches:
-                            partial_word_matches[token] = []
-                        partial_word_matches[token].append(word)
-    
-    # Add partial matches to expanded tokens
-    for token, matches in partial_word_matches.items():
-        for match in matches:
-            if match not in expanded_tokens:
-                expanded_tokens.append(match)
-    
-    # Handle apostrophe variants (russells -> russell's)
-    apostrophe_variants = []
-    for token in cleaned_tokens:
-        if token.endswith('s') and len(token) > 3:
-            # Create variant with apostrophe
-            apostrophe_variant = token[:-1] + "'s"
-            apostrophe_variants.append(apostrophe_variant)
-    
-    expanded_tokens.extend(apostrophe_variants)
-    
-    # Process each wine name
-    for wine_name in WINE_NAMES:
-        # Normalize wine name for comparison
-        wine_name_normalized = re.sub(r'[^\w\s]', '', wine_name.lower()).strip()
-        wine_parts = wine_name_normalized.split()
-        
-        # Calculate matching score for the combined text
-        combined_score = SequenceMatcher(None, combined_text, wine_name_normalized).ratio()
-        
-        # Calculate individual token matching scores
-        token_scores = []
-        matched_parts = 0
-        
-        # Track if specific tokens are present (like numbers, brand names)
-        has_number = any(token.isdigit() for token in cleaned_tokens)
-        has_year = any("year" in token.lower() for token in expanded_tokens)
-        has_original = "original" in cleaned_tokens
-        has_cream = any("cream" in token or "cram" in token for token in cleaned_tokens)
-        has_wheated = any("wheat" in token for token in expanded_tokens)
-        has_small = any("small" in token for token in expanded_tokens)
-        has_batch = any("batch" in token for token in expanded_tokens)
-        
-        for token in expanded_tokens:
-            # Check if token is a complete word in wine name (with higher weight)
-            if token in wine_parts:
-                token_scores.append(1.0)
-                matched_parts += 1
-            # Check if token is a substring of wine name
-            elif token in wine_name_normalized:
-                token_scores.append(0.9 * (len(token) / len(wine_name_normalized)) + 0.1)
-                matched_parts += 0.5
-            else:
-                # Get best individual word match
-                best_word_match = max([SequenceMatcher(None, token, part).ratio() for part in wine_parts], default=0)
-                token_scores.append(best_word_match)
-        
-        # Average token scores (use best token scores if we have expanded tokens)
-        if len(token_scores) > len(cleaned_tokens):
-            token_scores.sort(reverse=True)
-            token_scores = token_scores[:len(cleaned_tokens)]
-        
-        avg_token_score = sum(token_scores) / len(token_scores) if token_scores else 0
-        
-        # Bonus for matching number tokens with wines containing years
-        number_bonus = 0
-        if has_number:
-            # Check if wine has year information
-            wine_has_year = bool(re.search(r'\b\d+\s*(year|yr)\b', wine_name_normalized, re.IGNORECASE))
-            # Check if wine has a numbered expression
-            wine_has_number = bool(re.search(r'\d+', wine_name_normalized))
-            
-            # Extract numbers from both tokens and wine name
-            token_numbers = [int(re.search(r'\d+', t).group()) for t in cleaned_tokens if re.search(r'\d+', t)]
-            wine_numbers = [int(n) for n in re.findall(r'\d+', wine_name_normalized)]
-            
-            # If we have matching numbers, give a big bonus
-            if token_numbers and wine_numbers and any(n in wine_numbers for n in token_numbers):
-                number_bonus = 0.25  # Higher bonus for exact number match
-            elif wine_has_year or wine_has_number:
-                number_bonus = 0.15  # Smaller bonus for any number
-        
-        # Specific bonus for "cream" or misspellings like "cram"
-        cream_bonus = 0
-        if has_cream and ("cream" in wine_name_normalized or "creme" in wine_name_normalized):
-            cream_bonus = 0.2
-        
-        # Special case for "Bourbon Cream"
-        if has_cream and "buffalo trace" in wine_name_normalized and "cream" in wine_name_normalized:
-            cream_bonus = 0.3
-        
-        # Bonus for "Original" keyword
-        original_bonus = 0
-        if has_original and "original" in wine_name_normalized:
-            original_bonus = 0.15
-        
-        # Year bonus
-        year_bonus = 0
-        if has_year and "year" in wine_name_normalized:
-            year_bonus = 0.1
-            
-        # Wheated bonus
-        wheated_bonus = 0
-        if has_wheated and "wheat" in wine_name_normalized:
-            wheated_bonus = 0.15
-            
-        # Small batch bonus
-        small_batch_bonus = 0
-        if has_small and has_batch and "small batch" in wine_name_normalized:
-            small_batch_bonus = 0.2
-            
-        # Coverage score - what fraction of words in the wine name are accounted for
-        coverage = matched_parts / len(wine_parts) if wine_parts else 0
-        
-        # Specific handling for George T. Stagg
-        if "george" in cleaned_tokens and "stagg" in cleaned_tokens:
-            # 2009 Release is the reference release
-            if "2009" in wine_name_normalized:
-                coverage += 0.3
+                # Calculate token-based match score
+                token_match_score = calculate_token_match_score(cleaned_tokens, match_text)
                 
-        # Specific handling for Weller 12
-        if "weller" in cleaned_tokens and "12" in cleaned_tokens:
-            if "wheated" in wine_name_normalized and "original" in wine_name_normalized:
-                coverage += 0.3
+                # Apply bonuses for specific patterns
+                bonus = calculate_match_bonuses(cleaned_tokens, match_text, original_wine)
                 
-        # Specific handling for Russell's 
-        if any(token.startswith("russ") for token in cleaned_tokens) and "reserve" in cleaned_tokens:
-            if "single barrel" in wine_name_normalized:
-                coverage += 0.2
+                # Calculate final score with weights
+                final_score = (0.4 * similarity) + (0.4 * token_match_score) + (0.2 * bonus)
                 
-        # Specific handling for Smoke Wagon Small
-        if "smoke" in cleaned_tokens and "wagon" in cleaned_tokens and "small" in cleaned_tokens:
-            if "small batch" in wine_name_normalized:
-                coverage += 0.3
-                
-        # Specific handling for Blanton's Original
-        if any("blanton" in token for token in cleaned_tokens) and "original" in cleaned_tokens:
-            if "single barrel" in wine_name_normalized and "original" in wine_name_normalized:
-                coverage += 0.3
-        
-        # Combined final score with various components
-        final_score = (0.35 * combined_score + 
-                       0.25 * avg_token_score + 
-                       0.4 * coverage + 
-                       number_bonus + 
-                       original_bonus + 
-                       cream_bonus + 
-                       year_bonus + 
-                       wheated_bonus + 
-                       small_batch_bonus)
-        
-        # Store the match and score for potential tie-breaking
-        best_match_candidates.append((wine_name, final_score))
-        
-        # Update best match if better score found
-        if final_score > best_score:
-            best_score = final_score
-            best_match = wine_name
+                match_candidates.append((original_wine, final_score))
     
-    # Handle edge cases with very close scores
-    if best_match and best_match_candidates:
-        # Sort candidates by score, descending
-        best_match_candidates.sort(key=lambda x: x[1], reverse=True)
+    # If we didn't get good matches from difflib approach, try token-based approach
+    if not match_candidates:
+        for normalized, original_wine in normalized_wines:
+            # Calculate similarity using SequenceMatcher
+            similarity = SequenceMatcher(None, combined_text, normalized).ratio()
+            
+            # Calculate token-based match score
+            token_match_score = calculate_token_match_score(cleaned_tokens, normalized)
+            
+            # Apply bonuses for specific patterns
+            bonus = calculate_match_bonuses(cleaned_tokens, normalized, original_wine)
+            
+            # Calculate final score with weights
+            final_score = (0.4 * similarity) + (0.4 * token_match_score) + (0.2 * bonus)
+            
+            if final_score >= min_score:
+                match_candidates.append((original_wine, final_score))
+    
+    # Sort candidates by score in descending order
+    match_candidates.sort(key=lambda x: x[1], reverse=True)
+    
+    # Return the best match if we have any candidates
+    if match_candidates:
+        best_match, best_score = match_candidates[0]
         
-        # Get top candidates with scores very close to the best
-        close_candidates = [c for c in best_match_candidates if c[1] >= best_score - 0.05]
+        # Handle multiple close candidates
+        close_candidates = [c for c in match_candidates if c[1] >= best_score - 0.05]
         
-        # For specific cases, apply additional rules
+        # If we have multiple close candidates, prefer those with more token matches
         if len(close_candidates) > 1:
-            # Special case for Weller 12
-            if "weller" in cleaned_tokens and "12" in cleaned_tokens:
-                for candidate, score in close_candidates:
-                    if "wheated" in candidate.lower():
-                        best_match = candidate
-                        best_score = score
-                        break
-            
-            # Special case for George T. Stagg
-            if "george" in cleaned_tokens and "stagg" in cleaned_tokens and "btac" in cleaned_tokens:
-                for candidate, score in close_candidates:
-                    if "2009" in candidate:
-                        best_match = candidate
-                        best_score = score
-                        break
-                        
-            # Special case for Smoke Wagon Small
-            if "smoke" in cleaned_tokens and "wagon" in cleaned_tokens and "small" in cleaned_tokens:
-                for candidate, score in close_candidates:
-                    if "small batch" in candidate.lower():
-                        best_match = candidate
-                        best_score = score
-                        break
-                        
-            # Special case for Blanton's Original
-            if any("blanton" in token for token in cleaned_tokens) and "original" in cleaned_tokens:
-                for candidate, score in close_candidates:
-                    if "original single barrel" in candidate.lower():
-                        best_match = candidate
-                        best_score = score
-                        break
+            # Re-rank based on token presence
+            for candidate, score in close_candidates:
+                candidate_text = re.sub(r'[^\w\s]', '', candidate.lower()).strip()
+                token_presence = sum(1 for token in cleaned_tokens if token in candidate_text.split())
+                # If this candidate has more token matches, it becomes our best match
+                if token_presence > sum(1 for token in cleaned_tokens if token in re.sub(r'[^\w\s]', '', best_match.lower()).strip().split()):
+                    best_match = candidate
+                    best_score = score
     
-    # Return best match if it meets the minimum score threshold
-    if best_score >= min_score:
-        return best_match, best_score
-    else:
+    # Return None if the score is too low
+    if best_score < min_score:
         return None, 0
+        
+    return best_match, best_score

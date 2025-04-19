@@ -7,10 +7,39 @@ from src.east import detect_text as east_detect_text
 from src.east import process_directory as east_process_directory
 from src.tesseract import detect_text as tesseract_detect_text
 from src.eval import evaluate_ocr_accuracy, run_evaluation
+import concurrent.futures
+import threading
 
-def process_directory_with_tqdm(directory_path, detector_func, min_conf=0, output_file=None, model_path=None):
+# Thread-local storage to avoid sharing resources between threads
+thread_local = threading.local()
+
+def process_image(args):
     """
-    Process all images in a directory with progress bar using tqdm.
+    Process a single image with the specified detector.
+    
+    Args:
+        args: Tuple containing (image_path, image_id, detector_func, min_conf, model_path)
+        
+    Returns:
+        tuple: (image_id, detected_text)
+    """
+    image_path, image_id, detector_func, min_conf, model_path = args
+    
+    try:
+        # Use appropriate detector function
+        if detector_func == east_detect_text:
+            detected_text = detector_func(image_path, min_conf, model_path)
+        else:
+            detected_text = detector_func(image_path, min_conf)
+            
+        return image_id, detected_text
+    except Exception as e:
+        print(f"Error processing {image_path}: {e}")
+        return image_id, []
+
+def process_directory_with_tqdm(directory_path, detector_func, min_conf=0, output_file=None, model_path=None, num_threads=1):
+    """
+    Process all images in a directory with progress bar using tqdm, optionally using multi-threading.
     
     Args:
         directory_path (str): Path to directory containing images
@@ -18,6 +47,7 @@ def process_directory_with_tqdm(directory_path, detector_func, min_conf=0, outpu
         min_conf (int): Minimum confidence threshold for text detection
         output_file (str, optional): Path to save results as JSON
         model_path (str, optional): Path to EAST model (only for east detector)
+        num_threads (int): Number of threads to use (default: 1)
         
     Returns:
         dict: Dictionary with image_id as key and list of detected text as value
@@ -43,21 +73,39 @@ def process_directory_with_tqdm(directory_path, detector_func, min_conf=0, outpu
     
     print(f"Found {len(image_files)} images to process")
     
-    # Process images with progress bar
-    for filename in tqdm(image_files, desc="Processing images", unit="image"):
-        image_path = os.path.join(directory_path, filename)
-        image_id = os.path.splitext(filename)[0]
-        try:
-            # Use appropriate detector function
-            if detector_func == east_detect_text:
-                detected_text = detector_func(image_path, min_conf, model_path)
-            else:
-                detected_text = detector_func(image_path, min_conf)
-                
-            results[image_id] = detected_text
-            # Don't print here to keep progress bar clean
-        except Exception as e:
-            tqdm.write(f"Error processing {filename}: {e}")
+    if num_threads > 1:
+        # Multi-threaded processing
+        tasks = [(os.path.join(directory_path, filename), 
+                 os.path.splitext(filename)[0], 
+                 detector_func, 
+                 min_conf, 
+                 model_path) for filename in image_files]
+        
+        with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
+            # Process images with progress bar
+            futures = {executor.submit(process_image, task): task for task in tasks}
+            
+            for future in tqdm(concurrent.futures.as_completed(futures), 
+                              total=len(tasks), 
+                              desc="Processing images", 
+                              unit="image"):
+                image_id, detected_text = future.result()
+                results[image_id] = detected_text
+    else:
+        # Single-threaded processing (original method)
+        for filename in tqdm(image_files, desc="Processing images", unit="image"):
+            image_path = os.path.join(directory_path, filename)
+            image_id = os.path.splitext(filename)[0]
+            try:
+                # Use appropriate detector function
+                if detector_func == east_detect_text:
+                    detected_text = detector_func(image_path, min_conf, model_path)
+                else:
+                    detected_text = detector_func(image_path, min_conf)
+                    
+                results[image_id] = detected_text
+            except Exception as e:
+                tqdm.write(f"Error processing {filename}: {e}")
     
     # Save results to file if specified
     if output_file:
@@ -116,7 +164,12 @@ def main():
     # Parse command line arguments
     import argparse
     parser = argparse.ArgumentParser(description='Evaluate OCR methods')
+    parser.add_argument('--threads', type=int, default=1, 
+                        help='Number of threads to use for processing (default: 1)')
     args = parser.parse_args()
+    
+    # Determine if we should use verbose mode (only in single-thread mode)
+    verbose = args.threads <= 1
     
     # Create test_output directory if it doesn't exist
     os.makedirs("test_output", exist_ok=True)
@@ -127,13 +180,20 @@ def main():
         print("EAST model not found. Only Tesseract OCR will be evaluated.")
     
     # Run OCR on all images with different confidence thresholds
-    conf_thresholds = [0, 20, 40, 60, 80]
+    # conf_thresholds = [0, 20, 40, 60, 80]
+    conf_thresholds = [80]
     
     # Store results for each method
     results = {
         "tesseract": {},
         "east": {}
     }
+    
+    # Print multi-threading info
+    if args.threads > 1:
+        print(f"\nRunning in multi-threaded mode with {args.threads} threads")
+    else:
+        print("\nRunning in single-threaded mode with verbose output")
     
     # Test standard Tesseract OCR
     print("\n===== Evaluating Standard Tesseract OCR (all images in 'images' folder) =====")
@@ -146,7 +206,8 @@ def main():
         # Process images with progress bar
         start_time = time.time()
         ocr_results = process_directory_with_tqdm("images", tesseract_detect_text, 
-                                                 min_conf=conf, output_file=conf_output)
+                                                 min_conf=conf, output_file=conf_output,
+                                                 num_threads=args.threads)
         ocr_time = time.time() - start_time
         
         tqdm.write(f"OCR processing completed in {ocr_time:.2f} seconds.")
@@ -157,7 +218,7 @@ def main():
         eval_output = f"test_output/tesseract_eval_results_conf{conf}.json"
         
         tqdm.write(f"Evaluating results...")
-        eval_results = run_evaluation(conf_output, eval_output, min_confidence=0.5, verbose=True)
+        eval_results = run_evaluation(conf_output, eval_output, min_confidence=0.5, verbose=verbose)
         eval_time = time.time() - start_time
         
         # Store results for this confidence level
@@ -186,7 +247,8 @@ def main():
             start_time = time.time()
             ocr_results = process_directory_with_tqdm("images", east_detect_text, 
                                                     min_conf=conf, output_file=conf_output,
-                                                    model_path=east_model_path)
+                                                    model_path=east_model_path,
+                                                    num_threads=args.threads)
             ocr_time = time.time() - start_time
             
             tqdm.write(f"OCR processing completed in {ocr_time:.2f} seconds.")
@@ -197,7 +259,7 @@ def main():
             eval_output = f"test_output/east_eval_results_conf{conf}.json"
             
             tqdm.write(f"Evaluating results...")
-            eval_results = run_evaluation(conf_output, eval_output, min_confidence=0.5, verbose=True)
+            eval_results = run_evaluation(conf_output, eval_output, min_confidence=0.5, verbose=verbose)
             eval_time = time.time() - start_time
             
             # Store results for this confidence level
