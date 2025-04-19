@@ -111,6 +111,138 @@ def process_directory(directory_path, min_conf=0, output_file=None):
     
     return results
 
+def get_text_boxes(image_path, min_conf=0):
+    """
+    Get text bounding boxes, text content, and confidence values from an image.
+    
+    Args:
+        image_path (str): Path to the input image
+        min_conf (int): Minimum confidence threshold for text detection (default: 0)
+        
+    Returns:
+        tuple: (boxes, texts, confidences) where:
+            - boxes: List of bounding boxes in format [x, y, w, h]
+            - texts: List of text strings for each box
+            - confidences: List of confidence values for each box
+    """
+    # Load the input image and convert it from BGR to RGB channel ordering
+    image = cv2.imread(image_path)
+    if image is None:
+        raise ValueError(f"Could not read image from {image_path}")
+    
+    # Resize image to improve detection (2x upscaling)
+    original_h, original_w = image.shape[:2]
+    scale_factor = 2.0
+    upscaled = cv2.resize(image, (int(original_w * scale_factor), int(original_h * scale_factor)))
+    
+    # Apply preprocessing to enhance text visibility
+    # Convert to grayscale
+    gray = cv2.cvtColor(upscaled, cv2.COLOR_BGR2GRAY)
+    
+    # Apply adaptive thresholding to get better text contrast
+    # Try both methods and use the one with better results
+    thresh1 = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
+                                   cv2.THRESH_BINARY, 11, 2)
+    thresh2 = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_MEAN_C, 
+                                   cv2.THRESH_BINARY, 11, 2)
+    
+    # Convert back to RGB for Tesseract
+    rgb1 = cv2.cvtColor(thresh1, cv2.COLOR_GRAY2RGB)
+    rgb2 = cv2.cvtColor(thresh2, cv2.COLOR_GRAY2RGB)
+    rgb_original = cv2.cvtColor(upscaled, cv2.COLOR_BGR2RGB)
+    
+    # We'll try multiple processing methods and combine results
+    all_results = []
+    
+    # Process the image with multiple configurations to get better results
+    for rgb, config in [
+        (rgb_original, "--psm 11 --oem 1"),  # Original image, detect as much text as possible
+        (rgb1, "--psm 6 --oem 1"),  # Adaptive thresh (Gaussian), detect as uniform block
+        (rgb2, "--psm 4 --oem 1"),  # Adaptive thresh (Mean), detect as single column
+    ]:
+        try:
+            # Use Tesseract to localize each area of text in the input image
+            results = pytesseract.image_to_data(rgb, config=config, output_type=Output.DICT)
+            all_results.append(results)
+        except Exception as e:
+            print(f"Error in OCR with config {config}: {e}")
+    
+    # Initialize lists for boxes, texts, and confidences
+    boxes = []
+    texts = []
+    confidences = []
+    
+    # Process all results and merge them
+    for results in all_results:
+        # Loop over each of the individual text localizations
+        for i in range(0, len(results["text"])):
+            # Extract the OCR text along with the confidence and bounding box
+            text = results["text"][i]
+            conf = int(results["conf"][i])
+            
+            # Only consider results if they have text and meet minimum confidence
+            if conf > min_conf and text.strip():
+                # Extract bounding box coordinates (in upscaled image)
+                x = int(results["left"][i])
+                y = int(results["top"][i])
+                w = int(results["width"][i])
+                h = int(results["height"][i])
+                
+                # Skip boxes with zero width or height
+                if w <= 0 or h <= 0:
+                    continue
+                
+                # Convert coordinates back to original image size
+                x_orig = int(x / scale_factor)
+                y_orig = int(y / scale_factor)
+                w_orig = int(w / scale_factor)
+                h_orig = int(h / scale_factor)
+                
+                # Ensure the box is not outside the image boundaries
+                x_orig = max(0, min(x_orig, original_w - 1))
+                y_orig = max(0, min(y_orig, original_h - 1))
+                w_orig = min(w_orig, original_w - x_orig)
+                h_orig = min(h_orig, original_h - y_orig)
+                
+                # Only add valid boxes
+                if w_orig > 0 and h_orig > 0:
+                    # Add to our lists, avoiding duplicates
+                    # Check if this box overlaps significantly with an existing box
+                    box = [x_orig, y_orig, w_orig, h_orig]
+                    is_duplicate = False
+                    
+                    for j, existing_box in enumerate(boxes):
+                        # Calculate IoU (Intersection over Union)
+                        ex, ey, ew, eh = existing_box
+                        
+                        # Calculate intersection
+                        x_inter = max(x_orig, ex)
+                        y_inter = max(y_orig, ey)
+                        w_inter = min(x_orig + w_orig, ex + ew) - x_inter
+                        h_inter = min(y_orig + h_orig, ey + eh) - y_inter
+                        
+                        if w_inter > 0 and h_inter > 0:
+                            area_inter = w_inter * h_inter
+                            area_box1 = w_orig * h_orig
+                            area_box2 = ew * eh
+                            iou = area_inter / float(area_box1 + area_box2 - area_inter)
+                            
+                            # If significant overlap and this text has higher confidence, replace
+                            if iou > 0.5:
+                                if conf / 100.0 > confidences[j]:
+                                    boxes[j] = box
+                                    texts[j] = text
+                                    confidences[j] = conf / 100.0
+                                is_duplicate = True
+                                break
+                    
+                    if not is_duplicate:
+                        boxes.append(box)
+                        texts.append(text)
+                        confidences.append(conf / 100.0)  # Normalize to [0, 1]
+    
+    return boxes, texts, confidences
+
 if __name__ == "__main__":
     import argparse
     

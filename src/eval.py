@@ -87,7 +87,7 @@ def evaluate_ocr_accuracy(ocr_results, ground_truth_file='dataset.csv', min_conf
         "results": detailed_results
     }
 
-def run_evaluation(ocr_results_file, output_file=None, min_confidence=0.5):
+def run_evaluation(ocr_results_file, output_file=None, min_confidence=0.5, verbose=False):
     """
     Run evaluation on OCR results and optionally save to output file.
     
@@ -95,6 +95,7 @@ def run_evaluation(ocr_results_file, output_file=None, min_confidence=0.5):
         ocr_results_file (str): Path to JSON file containing OCR results
         output_file (str, optional): Path to save evaluation results
         min_confidence (float): Minimum confidence threshold for wine name matching
+        verbose (bool): Whether to print detailed results for each image
     
     Returns:
         dict: Evaluation metrics
@@ -116,6 +117,18 @@ def run_evaluation(ocr_results_file, output_file=None, min_confidence=0.5):
     print(f"  Accuracy: {evaluation_results['accuracy']:.2f}%")
     print(f"  Correct matches: {evaluation_results['correct_matches']}/{evaluation_results['total_samples']}")
     
+    # Print detailed results if verbose
+    if verbose:
+        print("\nDetailed Results:")
+        for result in evaluation_results['results']:
+            print(f"Image: {result['image_id']}")
+            print(f"  OCR Tokens: {result['ocr_tokens']}")
+            print(f"  Ground Truth: {result['ground_truth']}")
+            print(f"  Predicted: {result['predicted_match']}")
+            print(f"  Confidence: {result['confidence']:.2f}")
+            print(f"  Correct: {'✓' if result['is_correct'] else '✗'}")
+            print()
+    
     # Save results if output file specified
     if output_file:
         os.makedirs(os.path.dirname(output_file), exist_ok=True)
@@ -134,6 +147,7 @@ if __name__ == "__main__":
         ocr_results_file = sys.argv[1]
         output_file = sys.argv[2] if len(sys.argv) > 2 else None
         min_confidence = float(sys.argv[3]) if len(sys.argv) > 3 else 0.5
-        run_evaluation(ocr_results_file, output_file, min_confidence)
+        verbose = sys.argv[4] == 'True' if len(sys.argv) > 4 else False
+        run_evaluation(ocr_results_file, output_file, min_confidence, verbose)
     else:
-        print("Usage: python -m src.eval <ocr_results_file> [output_file] [min_confidence]")
+        print("Usage: python -m src.eval <ocr_results_file> [output_file] [min_confidence] [verbose]")
