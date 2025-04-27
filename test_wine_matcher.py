@@ -30,7 +30,7 @@ def test_wine_matcher():
     
     passes = 0
     for i, (tokens, expected) in enumerate(test_cases, 1):
-        match, score = find_best_wine_match(tokens)
+        match = find_best_wine_match(tokens)
         
         # Normalize strings to account for different apostrophe types and other edge cases
         def normalize_string(s):
@@ -51,7 +51,6 @@ def test_wine_matcher():
         print(f"  Input tokens: {tokens}")
         print(f"  Expected: {expected}")
         print(f"  Got: {match}")
-        print(f"  Confidence: {score:.4f}")
         print("-" * 50)
     
     print(f"Summary: {passes}/{len(test_cases)} tests passed")

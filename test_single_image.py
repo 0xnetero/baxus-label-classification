@@ -6,12 +6,12 @@ import sys
 import json
 import numpy as np
 from src.east import detect_text as east_detect_text
-from src.east import east_detect_text_regions, recognize_text
+from src.east import east_detect_text_regions, recognize_text, load_east_model
 from src.tesseract import detect_text as tesseract_detect_text
 from src.tesseract import get_text_boxes
 from src.helpers import find_best_wine_match
 from src.eval import evaluate_ocr_accuracy
-
+from src.constants import DIFFLIB_CUTOFF
 def visualize_boxes(image, boxes, texts, title="Text Detection", box_color=(0, 255, 0), text_color=(0, 0, 255)):
     """
     Visualize bounding boxes and recognized text on the image.
@@ -142,16 +142,16 @@ def run_test_on_image(image_path):
         print(f"Detected {len(tesseract_boxes)} text regions")
         
         # Print details of each detected box
-        for i, (box, text, conf_val) in enumerate(zip(tesseract_boxes, tesseract_texts, tesseract_confs)):
-            print(f"Box {i+1}: {text} (Confidence: {conf_val:.2f})")
+        # for i, (box, text, conf_val) in enumerate(zip(tesseract_boxes, tesseract_texts, tesseract_confs)):
+        #     print(f"Box {i+1}: {text} (Confidence: {conf_val:.2f})")
         
-        # Get the list of tokens for matching
-        tesseract_results = tesseract_detect_text(image_path, conf)
+        # Get the list of tokens for matching - use text from all detected boxes
+        tesseract_results = tesseract_texts
         print(f"Detected text tokens: {tesseract_results}")
         
         # Find best wine match if we have tokens
         if tesseract_results:
-            best_match, confidence = find_best_wine_match(tesseract_results, min_score=0.5)
+            best_match, confidence = find_best_wine_match(tesseract_results, min_score=DIFFLIB_CUTOFF)
             print(f"Best match: {best_match}")
             print(f"Confidence: {confidence:.2f}")
             
@@ -182,7 +182,6 @@ def run_test_on_image(image_path):
     
     try:
         # Try to load the EAST model
-        from src.east import load_east_model
         net = load_east_model()
         
         for conf in conf_thresholds:
@@ -202,13 +201,13 @@ def run_test_on_image(image_path):
                 east_confs.append(conf_val)
                 print(f"Box {i+1}: {text} (Confidence: {conf_val:.2f})")
             
-            # Get tokens for matching
-            east_results = east_detect_text(image_path, conf)
+            # Get tokens for matching - use text from all detected boxes
+            east_results = [text for text in east_texts if text.strip()]
             print(f"Detected text tokens: {east_results}")
             
             # Find best wine match if we have tokens
             if east_results:
-                best_match, confidence = find_best_wine_match(east_results, min_score=0.5)
+                best_match, confidence = find_best_wine_match(east_results, min_score=DIFFLIB_CUTOFF)
                 print(f"Best match: {best_match}")
                 print(f"Confidence: {confidence:.2f}")
                 

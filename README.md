@@ -51,10 +51,12 @@ python -m src.eval <ocr_results_file> [output_file] [min_confidence] [verbose]
 python test_single_image.py <image_path>
 ```
 
-### Run comparative testing
+### Run evaluation
 
 ```bash
-python test_east_accuracy.py --max-images <num_images> --threads <num_threads>
+python test_east_accuracy.py --tesseract-only
+python test_east_accuracy.py --east-only
+python test_east_accuracy.py --threads 4
 ```
 
 ## Evaluation Results

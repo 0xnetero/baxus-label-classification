@@ -5,7 +5,7 @@ from pathlib import Path
 from src.helpers import find_best_wine_match
 from src.wine_names import WINE_NAMES
 
-def evaluate_ocr_accuracy(ocr_results, ground_truth_file='dataset.csv', min_confidence=0.5):
+def evaluate_ocr_accuracy(ocr_results, ground_truth_file='dataset.csv', min_confidence=0.6):
     """
     Evaluate the accuracy of OCR model predictions against ground truth wine names.
     
@@ -87,7 +87,7 @@ def evaluate_ocr_accuracy(ocr_results, ground_truth_file='dataset.csv', min_conf
         "results": detailed_results
     }
 
-def run_evaluation(ocr_results_file, output_file=None, min_confidence=0.5, verbose=False):
+def run_evaluation(ocr_results_file, output_file=None, min_confidence=0.6, verbose=False):
     """
     Run evaluation on OCR results and optionally save to output file.
     
@@ -124,8 +124,8 @@ def run_evaluation(ocr_results_file, output_file=None, min_confidence=0.5, verbo
             print(f"Image: {result['image_id']}")
             print(f"  OCR Tokens: {result['ocr_tokens']}")
             print(f"  Ground Truth: {result['ground_truth']}")
-            print(f"  Predicted: {result['predicted_match']}")
-            print(f"  Confidence: {result['confidence']:.2f}")
+            print(f"  Predicted: {result['predicted_match'] or 'None'}")
+            print(f"  Confidence: {result.get('confidence', 0):.2f}")
             print(f"  Correct: {'✓' if result['is_correct'] else '✗'}")
             print()
     
@@ -146,7 +146,7 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         ocr_results_file = sys.argv[1]
         output_file = sys.argv[2] if len(sys.argv) > 2 else None
-        min_confidence = float(sys.argv[3]) if len(sys.argv) > 3 else 0.5
+        min_confidence = float(sys.argv[3]) if len(sys.argv) > 3 else 0.6
         verbose = sys.argv[4] == 'True' if len(sys.argv) > 4 else False
         run_evaluation(ocr_results_file, output_file, min_confidence, verbose)
     else:

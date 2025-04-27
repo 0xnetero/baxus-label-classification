@@ -488,3 +488,5 @@ WINE_NAMES = [
     'Yellowstone Select',
     'Yellowstone Select Landmark Edition',
 ]
+
+LOWER_CASE_WINE_NAMES = [wine.lower() for wine in WINE_NAMES]

@@ -5,7 +5,6 @@ import os
 import json
 from pytesseract import Output
 from imutils.object_detection import non_max_suppression
-from src.helpers import cleanup_text
 
 def load_east_model(model_path=None):
     """
@@ -334,9 +333,8 @@ def detect_text(image_path, min_conf=0, model_path=None):
         # and text is not empty
         if confidence > min_conf_normalized and text.strip():
             # Clean up the text (remove non-ASCII characters)
-            cleaned_text = cleanup_text(text)
-            if cleaned_text:  # Only add if text is not empty after cleanup
-                detected_text.append(cleaned_text)
+            if text:  # Only add if text is not empty after cleanup
+                detected_text.append(text)
     
     # If we don't have much text, try using Tesseract on the whole image as a fallback
     if len(detected_text) < 2:
@@ -353,9 +351,8 @@ def detect_text(image_path, min_conf=0, model_path=None):
                 conf = int(results["conf"][i]) / 100.0  # Normalize to [0, 1]
                 
                 if conf > min_conf_normalized and text.strip():
-                    cleaned_text = cleanup_text(text)
-                    if cleaned_text and cleaned_text not in detected_text:
-                        detected_text.append(cleaned_text)
+                    if text and text not in detected_text:
+                        detected_text.append(text)
         except Exception as e:
             print(f"Error in fallback text detection: {e}")
     

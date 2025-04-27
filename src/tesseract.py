@@ -2,7 +2,6 @@
 from pytesseract import Output
 import pytesseract
 import cv2
-from src.helpers import cleanup_text
 
 def detect_text(image_path, min_conf=0):
     """
@@ -24,7 +23,6 @@ def detect_text(image_path, min_conf=0):
     
     # Use Tesseract to localize each area of text in the input image
     results = pytesseract.image_to_data(rgb, output_type=Output.DICT)
-    
     # Extract detected text with confidence above threshold
     detected_text = []
     
@@ -38,9 +36,7 @@ def detect_text(image_path, min_conf=0):
         # and text is not empty
         if conf > min_conf and text.strip():
             # Clean up the text (remove non-ASCII characters)
-            cleaned_text = cleanup_text(text)
-            if cleaned_text:  # Only add if text is not empty after cleanup
-                detected_text.append(cleaned_text)
+            detected_text.append(text)
     
     return detected_text
 

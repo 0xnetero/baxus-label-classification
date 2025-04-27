@@ -1,12 +1,13 @@
+from src.constants import DIFFLIB_CUTOFF
+
 def cleanup_text(text):
     # strip out non-ASCII text so we can draw the text on the image
     # using OpenCV
     return "".join([c if ord(c) < 128 else "" for c in text]).strip()
 
-from src.wine_names import WINE_NAMES
+from src.wine_names import WINE_NAMES, LOWER_CASE_WINE_NAMES
 import re
 from difflib import SequenceMatcher, get_close_matches
-
 # Helper functions for the improved wine matching
 def calculate_token_match_score(tokens, target_text):
     """
@@ -82,7 +83,28 @@ def calculate_match_bonuses(tokens, target_text, original_wine):
     # Cap the bonus at 0.5
     return min(0.5, bonus)
 
-def find_best_wine_match(tokens, min_score=0.4):
+def remove_special_characters(input_string):
+    """Removes special characters from a string.
+
+    Args:
+        input_string: The string to process.
+
+    Returns:
+        A new string with special characters removed.
+    """
+    # Define the pattern of characters to remove.
+    # We are using a regular expression here.
+    # [^a-zA-Z0-9\s] means: match any character that is NOT
+    # (^) a lowercase letter (a-z), an uppercase letter (A-Z),
+    # a digit (0-9), or a whitespace character (\s).
+    pattern = r'[^a-zA-Z0-9\s]'
+
+    # Use the re.sub() function to replace all matches of the pattern
+    # with an empty string ('').
+    cleaned_string = re.sub(pattern, '', input_string)
+    return cleaned_string
+
+def find_best_wine_match(tokens, min_score=DIFFLIB_CUTOFF):
     """
     Find the best matching wine name from a list of text tokens using difflib.
     
@@ -94,119 +116,24 @@ def find_best_wine_match(tokens, min_score=0.4):
         tuple: (best_match, confidence_score) or (None, 0) if no good match found
     """
     if not tokens or len(tokens) == 0:
+        return (None, 0)
+    
+    # Try matching combined words against wine names
+    combined_text = " ".join(tokens)
+    combined_text = remove_special_characters(combined_text)
+    combined_text = combined_text.lower()
+    best_wine = None
+    best_ratio = 0
+    print(f"Combined text: {combined_text}")
+    
+    for wine in LOWER_CASE_WINE_NAMES:
+        ratio = SequenceMatcher(None, combined_text, wine).ratio()
+        if ratio > best_ratio:
+            best_ratio = ratio
+            best_wine = wine
+    
+    # Return best match with confidence score or (None, 0) if no match found
+    if best_wine and best_ratio >= min_score:
+        return WINE_NAMES[LOWER_CASE_WINE_NAMES.index(best_wine)], best_ratio
+    else:
         return None, 0
-    
-    # Clean and normalize tokens
-    cleaned_tokens = []
-    for token in tokens:
-        if token:
-            # Convert to lowercase, remove non-alphanumeric chars except spaces, and strip whitespace
-            cleaned = re.sub(r'[^\w\s]', '', token.lower()).strip()
-            if cleaned:
-                cleaned_tokens.append(cleaned)
-    
-    if not cleaned_tokens:
-        return None, 0
-    
-    # Special case handling for specific test cases
-    # These direct mappings help with tricky edge cases
-    special_cases = {
-        frozenset(['weller', '12']): "Weller 12 Year The Original Wheated Bourbon",
-        frozenset(['btac', 'george', 't', 'stagg']): "George T. Stagg 2009 Release",
-        frozenset(['russells', 'reserve', 'single']): "Russell's Reserve Single Barrel",
-        frozenset(['blantons', 'original']): "Blanton's Original Single Barrel",
-        frozenset(['smoke', 'wagon', 'small']): "Smoke Wagon Small Batch Bourbon",
-    }
-    
-    # Check if we have a special case match
-    token_set = frozenset(cleaned_tokens)
-    if token_set in special_cases:
-        matching_name = special_cases[token_set]
-        # Find the actual matching wine from WINE_NAMES to ensure it exists
-        for wine in WINE_NAMES:
-            if wine == matching_name:
-                return wine, 0.95  # High confidence for direct mapping
-    
-    # Join tokens for combined matching
-    combined_text = ' '.join(cleaned_tokens)
-    
-    # Prepare normalized versions of all wine names for comparison
-    normalized_wines = []
-    for wine in WINE_NAMES:
-        normalized = re.sub(r'[^\w\s]', '', wine.lower()).strip()
-        normalized_wines.append((normalized, wine))
-    
-    # Create a list of wine name strings for difflib.get_close_matches
-    wine_strings = [w[0] for w in normalized_wines]
-    
-    # Try to find close matches for the combined text
-    close_matches = get_close_matches(combined_text, wine_strings, n=5, cutoff=min_score)
-    
-    best_match = None
-    best_score = 0
-    match_candidates = []
-    
-    # If we have close matches from difflib, evaluate them further
-    if close_matches:
-        for match_text in close_matches:
-            # Find the original wine name for this normalized text
-            original_wine = next((w[1] for w in normalized_wines if w[0] == match_text), None)
-            if original_wine:
-                # Calculate similarity score using SequenceMatcher
-                similarity = SequenceMatcher(None, combined_text, match_text).ratio()
-                
-                # Calculate token-based match score
-                token_match_score = calculate_token_match_score(cleaned_tokens, match_text)
-                
-                # Apply bonuses for specific patterns
-                bonus = calculate_match_bonuses(cleaned_tokens, match_text, original_wine)
-                
-                # Calculate final score with weights
-                final_score = (0.4 * similarity) + (0.4 * token_match_score) + (0.2 * bonus)
-                
-                match_candidates.append((original_wine, final_score))
-    
-    # If we didn't get good matches from difflib approach, try token-based approach
-    if not match_candidates:
-        for normalized, original_wine in normalized_wines:
-            # Calculate similarity using SequenceMatcher
-            similarity = SequenceMatcher(None, combined_text, normalized).ratio()
-            
-            # Calculate token-based match score
-            token_match_score = calculate_token_match_score(cleaned_tokens, normalized)
-            
-            # Apply bonuses for specific patterns
-            bonus = calculate_match_bonuses(cleaned_tokens, normalized, original_wine)
-            
-            # Calculate final score with weights
-            final_score = (0.4 * similarity) + (0.4 * token_match_score) + (0.2 * bonus)
-            
-            if final_score >= min_score:
-                match_candidates.append((original_wine, final_score))
-    
-    # Sort candidates by score in descending order
-    match_candidates.sort(key=lambda x: x[1], reverse=True)
-    
-    # Return the best match if we have any candidates
-    if match_candidates:
-        best_match, best_score = match_candidates[0]
-        
-        # Handle multiple close candidates
-        close_candidates = [c for c in match_candidates if c[1] >= best_score - 0.05]
-        
-        # If we have multiple close candidates, prefer those with more token matches
-        if len(close_candidates) > 1:
-            # Re-rank based on token presence
-            for candidate, score in close_candidates:
-                candidate_text = re.sub(r'[^\w\s]', '', candidate.lower()).strip()
-                token_presence = sum(1 for token in cleaned_tokens if token in candidate_text.split())
-                # If this candidate has more token matches, it becomes our best match
-                if token_presence > sum(1 for token in cleaned_tokens if token in re.sub(r'[^\w\s]', '', best_match.lower()).strip().split()):
-                    best_match = candidate
-                    best_score = score
-    
-    # Return None if the score is too low
-    if best_score < min_score:
-        return None, 0
-        
-    return best_match, best_score

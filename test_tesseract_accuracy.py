@@ -3,12 +3,13 @@ import os
 import json
 import time
 from tqdm import tqdm
-from src.tesseract import detect_text
+from src.tesseract import get_text_boxes
 from src.eval import evaluate_ocr_accuracy, run_evaluation
 
 def process_directory_with_tqdm(directory_path, min_conf=0, output_file=None):
     """
-    Process all images in a directory with progress bar using tqdm.
+    Process all images in a directory with progress bar using tqdm,
+    using get_text_boxes to detect text with bounding boxes.
     
     Args:
         directory_path (str): Path to directory containing images
@@ -42,9 +43,12 @@ def process_directory_with_tqdm(directory_path, min_conf=0, output_file=None):
         image_path = os.path.join(directory_path, filename)
         image_id = os.path.splitext(filename)[0]
         try:
-            detected_text = detect_text(image_path, min_conf)
-            results[image_id] = detected_text
-            # Don't print here to keep progress bar clean
+            # Get bounding boxes and text using get_text_boxes
+            boxes, texts, confs = get_text_boxes(image_path, min_conf)
+            
+            # Store the detected text tokens for this image
+            results[image_id] = [text for text in texts if text.strip()]
+            
         except Exception as e:
             tqdm.write(f"Error processing {filename}: {e}")
     
@@ -64,7 +68,8 @@ def main():
     os.makedirs("test_output", exist_ok=True)
     
     # Run OCR on all images with different confidence thresholds
-    conf_thresholds = [0, 20, 40, 60, 80]
+    # conf_thresholds = [0, 20, 40, 60, 80]
+    conf_thresholds = [80]
     
     results = {}
     
