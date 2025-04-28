@@ -64,10 +64,14 @@ python test_east_accuracy.py --threads 4
 When testing on a small set of images, we found:
 
 1. **Standard Tesseract OCR**:
-   - detector confidence: 80%
-   - accuracy: 7.58%
-   - ocr time: 98s
-   - eval time: 9.6s
+=== SUMMARY: Standard Tesseract OCR ===
+Confidence threshold | Accuracy | Correct/Total matches
+------------------------------------------------------------
+                   0 |     2.20% | 11/500
+                  20 |     4.20% | 21/500
+                  40 |     5.20% | 26/500
+                  60 |     5.00% | 25/500
+                  80 |     3.80% | 19/500
 
 2. **EAST + Tesseract OCR**:
    - detector confidence: 80%

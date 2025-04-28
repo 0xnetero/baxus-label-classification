@@ -124,7 +124,7 @@ def find_best_wine_match(tokens, min_score=DIFFLIB_CUTOFF):
     combined_text = combined_text.lower()
     best_wine = None
     best_ratio = 0
-    print(f"Combined text: {combined_text}")
+    # print(f"Combined text: {combined_text}")
     
     for wine in LOWER_CASE_WINE_NAMES:
         ratio = SequenceMatcher(None, combined_text, wine).ratio()

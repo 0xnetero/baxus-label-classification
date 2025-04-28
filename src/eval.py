@@ -40,25 +40,28 @@ def evaluate_ocr_accuracy(ocr_results, ground_truth_file='dataset.csv', min_conf
             "results": []
         }
     
+    # Get total number of images in the images folder
+    total_images = 0
+    image_extensions = ['.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.tif']
+    for filename in os.listdir('images'):
+        if any(filename.lower().endswith(ext) for ext in image_extensions):
+            total_images += 1
+    
     # Initialize evaluation metrics
-    total_samples = 0
+    total_samples = total_images  # Use total number of images as denominator
     correct_matches = 0
     detailed_results = []
     
     # Evaluate each OCR result
     for image_id, tokens in ocr_results.items():
-        if not tokens or image_id not in ground_truth:
-            continue
-        
-        total_samples += 1
-        ground_truth_name = ground_truth[image_id]
+        ground_truth_name = ground_truth.get(image_id, '')
         
         # Find best match using helpers.find_best_wine_match
         best_match, confidence = find_best_wine_match(tokens, min_score=min_confidence)
         
         # Check if match is correct (normalize strings for comparison)
         is_correct = False
-        if best_match:
+        if best_match and ground_truth_name:
             # Normalize strings by removing/standardizing special characters
             normalized_match = best_match.lower().replace("'", "").replace("'", "").strip()
             normalized_truth = ground_truth_name.lower().replace("'", "").replace("'", "").strip()
@@ -77,7 +80,7 @@ def evaluate_ocr_accuracy(ocr_results, ground_truth_file='dataset.csv', min_conf
             "is_correct": is_correct
         })
     
-    # Calculate accuracy
+    # Calculate accuracy based on total number of images
     accuracy = (correct_matches / total_samples * 100) if total_samples > 0 else 0.0
     
     return {

@@ -126,51 +126,31 @@ def get_text_boxes(image_path, min_conf=0):
     if image is None:
         raise ValueError(f"Could not read image from {image_path}")
     
-    # Resize image to improve detection (2x upscaling)
+    # Get original dimensions
     original_h, original_w = image.shape[:2]
-    scale_factor = 2.0
-    upscaled = cv2.resize(image, (int(original_w * scale_factor), int(original_h * scale_factor)))
     
-    # Apply preprocessing to enhance text visibility
-    # Convert to grayscale
-    gray = cv2.cvtColor(upscaled, cv2.COLOR_BGR2GRAY)
+    # Skip very large images
+    if original_w > 2000 or original_h > 2000:
+        # Resize large images
+        scale = 2000 / max(original_w, original_h)
+        new_w = int(original_w * scale)
+        new_h = int(original_h * scale)
+        image = cv2.resize(image, (new_w, new_h), interpolation=cv2.INTER_AREA)
+        original_w, original_h = new_w, new_h
     
-    # Apply adaptive thresholding to get better text contrast
-    # Try both methods and use the one with better results
-    thresh1 = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
-                                   cv2.THRESH_BINARY, 11, 2)
-    thresh2 = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_MEAN_C, 
-                                   cv2.THRESH_BINARY, 11, 2)
+    # Convert to RGB for Tesseract
+    rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     
-    # Convert back to RGB for Tesseract
-    rgb1 = cv2.cvtColor(thresh1, cv2.COLOR_GRAY2RGB)
-    rgb2 = cv2.cvtColor(thresh2, cv2.COLOR_GRAY2RGB)
-    rgb_original = cv2.cvtColor(upscaled, cv2.COLOR_BGR2RGB)
-    
-    # We'll try multiple processing methods and combine results
-    all_results = []
-    
-    # Process the image with multiple configurations to get better results
-    for rgb, config in [
-        (rgb_original, "--psm 11 --oem 1"),  # Original image, detect as much text as possible
-        (rgb1, "--psm 6 --oem 1"),  # Adaptive thresh (Gaussian), detect as uniform block
-        (rgb2, "--psm 4 --oem 1"),  # Adaptive thresh (Mean), detect as single column
-    ]:
-        try:
-            # Use Tesseract to localize each area of text in the input image
-            results = pytesseract.image_to_data(rgb, config=config, output_type=Output.DICT)
-            all_results.append(results)
-        except Exception as e:
-            print(f"Error in OCR with config {config}: {e}")
-    
-    # Initialize lists for boxes, texts, and confidences
-    boxes = []
-    texts = []
-    confidences = []
-    
-    # Process all results and merge them
-    for results in all_results:
-        # Loop over each of the individual text localizations
+    try:
+        # Use Tesseract with a single configuration for speed
+        results = pytesseract.image_to_data(rgb, config="--psm 6 --oem 1", output_type=Output.DICT)
+        
+        # Initialize lists for boxes, texts, and confidences
+        boxes = []
+        texts = []
+        confidences = []
+        
+        # Process results
         for i in range(0, len(results["text"])):
             # Extract the OCR text along with the confidence and bounding box
             text = results["text"][i]
@@ -178,7 +158,7 @@ def get_text_boxes(image_path, min_conf=0):
             
             # Only consider results if they have text and meet minimum confidence
             if conf > min_conf and text.strip():
-                # Extract bounding box coordinates (in upscaled image)
+                # Extract bounding box coordinates
                 x = int(results["left"][i])
                 y = int(results["top"][i])
                 w = int(results["width"][i])
@@ -188,56 +168,23 @@ def get_text_boxes(image_path, min_conf=0):
                 if w <= 0 or h <= 0:
                     continue
                 
-                # Convert coordinates back to original image size
-                x_orig = int(x / scale_factor)
-                y_orig = int(y / scale_factor)
-                w_orig = int(w / scale_factor)
-                h_orig = int(h / scale_factor)
-                
                 # Ensure the box is not outside the image boundaries
-                x_orig = max(0, min(x_orig, original_w - 1))
-                y_orig = max(0, min(y_orig, original_h - 1))
-                w_orig = min(w_orig, original_w - x_orig)
-                h_orig = min(h_orig, original_h - y_orig)
+                x = max(0, min(x, original_w - 1))
+                y = max(0, min(y, original_h - 1))
+                w = min(w, original_w - x)
+                h = min(h, original_h - y)
                 
                 # Only add valid boxes
-                if w_orig > 0 and h_orig > 0:
-                    # Add to our lists, avoiding duplicates
-                    # Check if this box overlaps significantly with an existing box
-                    box = [x_orig, y_orig, w_orig, h_orig]
-                    is_duplicate = False
-                    
-                    for j, existing_box in enumerate(boxes):
-                        # Calculate IoU (Intersection over Union)
-                        ex, ey, ew, eh = existing_box
-                        
-                        # Calculate intersection
-                        x_inter = max(x_orig, ex)
-                        y_inter = max(y_orig, ey)
-                        w_inter = min(x_orig + w_orig, ex + ew) - x_inter
-                        h_inter = min(y_orig + h_orig, ey + eh) - y_inter
-                        
-                        if w_inter > 0 and h_inter > 0:
-                            area_inter = w_inter * h_inter
-                            area_box1 = w_orig * h_orig
-                            area_box2 = ew * eh
-                            iou = area_inter / float(area_box1 + area_box2 - area_inter)
-                            
-                            # If significant overlap and this text has higher confidence, replace
-                            if iou > 0.5:
-                                if conf / 100.0 > confidences[j]:
-                                    boxes[j] = box
-                                    texts[j] = text
-                                    confidences[j] = conf / 100.0
-                                is_duplicate = True
-                                break
-                    
-                    if not is_duplicate:
-                        boxes.append(box)
-                        texts.append(text)
-                        confidences.append(conf / 100.0)  # Normalize to [0, 1]
-    
-    return boxes, texts, confidences
+                if w > 0 and h > 0:
+                    boxes.append([x, y, w, h])
+                    texts.append(text)
+                    confidences.append(conf / 100.0)  # Normalize to [0, 1]
+        
+        return boxes, texts, confidences
+        
+    except Exception as e:
+        print(f"Error in OCR processing: {e}")
+        return [], [], []
 
 if __name__ == "__main__":
     import argparse
