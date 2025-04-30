@@ -5,3 +5,4 @@ opencv-python==4.11.0.86
 pytesseract==0.3.13
 tqdm==4.67.1
 requests==2.31.0
+easyocr==1.7.2
