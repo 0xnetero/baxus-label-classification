@@ -227,3 +227,146 @@ def find_best_wine_match(tokens, min_score=DIFFLIB_CUTOFF):
         return WINE_NAMES[LOWER_CASE_WINE_NAMES.index(best_wine)], best_ratio
     else:
         return None, 0
+
+# Import fuzzywuzzy for improved fuzzy matching
+try:
+    from fuzzywuzzy import fuzz
+    from fuzzywuzzy import process
+    FUZZYWUZZY_AVAILABLE = True
+except ImportError:
+    FUZZYWUZZY_AVAILABLE = False
+    print("Warning: fuzzywuzzy package not found. Fuzzy matching will not be available.")
+    print("Install with: pip install fuzzywuzzy python-Levenshtein")
+
+def find_best_wine_match_fuzzy(tokens, min_score=60):
+    """
+    Find the best matching wine name from a list of text tokens using fuzzywuzzy.
+    
+    Args:
+        tokens (list): List of strings/tokens to match against wine names
+        min_score (int): Minimum similarity score to consider a match (default: 60)
+        
+    Returns:
+        tuple: (best_match, confidence_score) or (None, 0) if no good match found
+    """
+    if not tokens or len(tokens) == 0:
+        return (None, 0)
+    
+    if not FUZZYWUZZY_AVAILABLE:
+        # Fall back to the standard matching function if fuzzywuzzy is not available
+        return find_best_wine_match(tokens, DIFFLIB_CUTOFF)
+    
+    # Clean up and deduplicate tokens
+    cleaned_tokens = []
+    for token in tokens:
+        # Convert to lowercase and remove special characters
+        clean_token = remove_special_characters(token.lower())
+        if clean_token and clean_token not in cleaned_tokens:
+            cleaned_tokens.append(clean_token)
+    
+    # Extract numbers from tokens (for age statement matching)
+    numbers = [token for token in cleaned_tokens if token.isdigit()]
+    
+    # Join tokens into a single string for full text matching
+    combined_text = " ".join(cleaned_tokens)
+    
+    # Method 1: Try direct matching with fuzzywuzzy process.extractOne
+    match_result = process.extractOne(
+        combined_text, 
+        WINE_NAMES,
+        scorer=fuzz.token_sort_ratio
+    )
+    
+    if match_result:
+        best_match, score = match_result
+    else:
+        best_match, score = None, 0
+    
+    # Method 2: Try partial ratio matching (better for matching substrings)
+    partial_match_result = process.extractOne(
+        combined_text, 
+        WINE_NAMES,
+        scorer=fuzz.partial_ratio
+    )
+    
+    if partial_match_result and partial_match_result[1] > score:
+        best_match, score = partial_match_result
+    
+    # Method 3: Use token set ratio (better for handling extra words and word order)
+    token_set_match_result = process.extractOne(
+        combined_text, 
+        WINE_NAMES,
+        scorer=fuzz.token_set_ratio
+    )
+    
+    if token_set_match_result and token_set_match_result[1] > score:
+        best_match, score = token_set_match_result
+    
+    # Store the initial best match
+    initial_best_match = best_match
+
+    # Special handling for age statements - look for wines with the same number (age) as in tokens
+    if numbers:
+        # Find wines containing the same numbers as in our tokens
+        matching_number_wines = []
+        for wine in WINE_NAMES:
+            wine_numbers = [n for n in re.findall(r'\d+', wine)]
+            if any(num in numbers for num in wine_numbers):
+                matching_number_wines.append((wine, fuzz.token_set_ratio(combined_text, wine)))
+        
+        # Sort by similarity score
+        matching_number_wines.sort(key=lambda x: x[1], reverse=True)
+        
+        # If we have any matches with the same number, use the best one
+        if matching_number_wines and matching_number_wines[0][1] >= min_score:
+            age_match, age_score = matching_number_wines[0]
+            
+            # Prefer matches with "Year" if a number is present
+            if "year" in age_match.lower() and any(num in age_match for num in numbers):
+                best_match = age_match
+                score = age_score + 10  # Add bonus for year match
+    
+    # Add bonus score for matching numbers (age statements)
+    bonus_score = 0
+    if best_match and numbers:
+        # Extract numbers from the best match
+        match_numbers = [n for n in re.findall(r'\d+', best_match)]
+        
+        # Add bonus for matching numbers (important for age statements)
+        if match_numbers and any(num in numbers for num in match_numbers):
+            bonus_score += 10
+            
+            # Extra bonus if the match contains "Year" (age statement)
+            if "year" in best_match.lower():
+                bonus_score += 10
+    
+    # Add bonus for exact brand name match
+    if best_match:
+        brand_name = best_match.split()[0].lower()
+        if any(brand_name == token.lower() for token in cleaned_tokens):
+            bonus_score += 10
+    
+    # Special case for "Eagle Rare 10 Year" vs "Eagle Rare"
+    # If we have a number in tokens and we're matching a short name (Eagle Rare),
+    # check if there's a variant with the number and "Year" in it
+    if best_match and numbers and "year" not in best_match.lower():
+        # Look for a variant with same brand but including our number and "Year"
+        brand_prefix = " ".join(best_match.split()[:2]).lower()  # First two words as brand
+        
+        for wine in WINE_NAMES:
+            wine_lower = wine.lower()
+            if wine_lower.startswith(brand_prefix) and "year" in wine_lower:
+                # Check if our detected number is in this wine name
+                if any(num in re.findall(r'\d+', wine) for num in numbers):
+                    best_match = wine
+                    bonus_score += 20
+                    break
+    
+    # Apply bonus score and ensure it doesn't exceed 100
+    final_score = min(score + bonus_score, 100)
+    
+    # Return the best match if score is high enough
+    if best_match and final_score >= min_score:
+        return best_match, final_score / 100.0
+    else:
+        return None, 0
