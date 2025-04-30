@@ -118,19 +118,109 @@ def find_best_wine_match(tokens, min_score=DIFFLIB_CUTOFF):
     if not tokens or len(tokens) == 0:
         return (None, 0)
     
-    # Try matching combined words against wine names
-    combined_text = " ".join(tokens)
-    combined_text = remove_special_characters(combined_text)
-    combined_text = combined_text.lower()
+    # Clean up and deduplicate tokens
+    cleaned_tokens = []
+    for token in tokens:
+        # Convert to lowercase and remove special characters
+        clean_token = remove_special_characters(token.lower())
+        if clean_token and clean_token not in cleaned_tokens:
+            cleaned_tokens.append(clean_token)
+    
+    # Try direct matching with subsets of tokens
     best_wine = None
     best_ratio = 0
-    # print(f"Combined text: {combined_text}")
+    
+    # Extract numbers from tokens
+    numbers = [token for token in cleaned_tokens if token.isdigit()]
+    
+    # Method 1: Standard combined text approach
+    combined_text = " ".join(cleaned_tokens)
     
     for wine in LOWER_CASE_WINE_NAMES:
         ratio = SequenceMatcher(None, combined_text, wine).ratio()
         if ratio > best_ratio:
             best_ratio = ratio
             best_wine = wine
+    
+    # Save the best difflib match
+    difflib_best_wine = best_wine
+    difflib_best_ratio = best_ratio
+    
+    # Method 2: Check for key tokens match (brand names and numbers)
+    for wine_idx, wine in enumerate(LOWER_CASE_WINE_NAMES):
+        wine_tokens = wine.split()
+        
+        # Extract numbers from wine name
+        wine_numbers = [word for word in wine_tokens if word.isdigit()]
+        
+        # Calculate how many words from the wine name are found in our tokens
+        matches = 0
+        wine_words_count = len(wine_tokens)
+        
+        # Special handling for year/number tokens
+        year_in_wine = False
+        year_in_tokens = False
+        matching_number = False
+        
+        for wine_word in wine_tokens:
+            # Check if this word is a number (likely a year or age)
+            if wine_word.isdigit():
+                year_in_wine = True
+                year_value = wine_word
+                
+                # Look for matching numbers in tokens
+                for token in cleaned_tokens:
+                    if token.isdigit() and token == year_value:
+                        matching_number = True
+                        year_in_tokens = True
+                        matches += 1
+                        break
+            else:
+                # For regular words, check if they appear in our tokens
+                for token in cleaned_tokens:
+                    if wine_word in token or token in wine_word:
+                        matches += 1
+                        break
+        
+        # Calculate match ratio for this wine
+        # Give more weight to wines where we match most words
+        token_match_ratio = matches / wine_words_count if wine_words_count > 0 else 0
+        
+        # Add bonus for matching the brand/first word
+        brand_bonus = 0.1 if wine_tokens and wine_tokens[0] in " ".join(cleaned_tokens).lower() else 0
+        
+        # Add bonus for matching year numbers (important for aged products)
+        year_bonus = 0.15 if matching_number else 0
+        
+        # Add word-matching bonus for "year" if missing but implied by number matching
+        year_word_bonus = 0
+        if "year" in wine.lower() and not any("year" in t.lower() for t in cleaned_tokens):
+            if year_in_wine and year_in_tokens:
+                # If wine has "X Year" and tokens have the number X but not "year"
+                year_word_bonus = 0.2
+        
+        # Special case: Match wines with identical numbers
+        number_match_bonus = 0
+        if numbers and wine_numbers and set(numbers).intersection(set(wine_numbers)):
+            number_match_bonus = 0.2
+            
+            # Strong preference for age-statement match with the exact number
+            if len(wine.split()) >= 3 and "year" in wine.lower():
+                # Products with age statements (like "10 Year") should match better when numbers are present
+                number_match_bonus = 0.4
+        
+        # Calculate final score for this wine
+        wine_score = token_match_ratio + brand_bonus + year_bonus + year_word_bonus + number_match_bonus
+        
+        # If this score is better, update best match
+        if wine_score > best_ratio:
+            best_ratio = wine_score
+            best_wine = LOWER_CASE_WINE_NAMES[wine_idx]
+    
+    # If token matching didn't find a strong match but difflib did, use the difflib result
+    if best_ratio < 0.5 and difflib_best_ratio >= min_score:
+        best_wine = difflib_best_wine
+        best_ratio = difflib_best_ratio
     
     # Return best match with confidence score or (None, 0) if no match found
     if best_wine and best_ratio >= min_score:

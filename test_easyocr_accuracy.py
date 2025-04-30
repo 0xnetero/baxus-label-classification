@@ -351,7 +351,7 @@ def main():
         
         try:
             # Set output filename for this confidence level
-            conf_output = f"test_output/easyocr_results_conf{conf}.json"
+            conf_output = f"test_output/new_easyocr_results_conf{conf}.json"
             
             # Process images with progress bar
             start_time = time.time()
@@ -367,7 +367,7 @@ def main():
             
             # Evaluate results
             start_time = time.time()
-            eval_output = f"test_output/easyocr_eval_results_conf{conf}.json"
+            eval_output = f"test_output/new_easyocr_eval_results_conf{conf}.json"
             
             tqdm.write(f"Evaluating results...")
             eval_results = run_evaluation(conf_output, eval_output, min_confidence=0.5, verbose=verbose)
@@ -391,7 +391,7 @@ def main():
     
     # Save summary results
     try:
-        with open("test_output/easyocr_accuracy.json", "w") as f:
+        with open("test_output/new_easyocr_accuracy.json", "w") as f:
             json.dump(results, f, indent=2)
     except Exception as e:
         print(f"Error saving summary results: {e}")
