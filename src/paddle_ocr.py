@@ -5,9 +5,39 @@ import os
 import json
 import numpy as np
 
-# Initialize PaddleOCR once (will download models on first run)
-# Set use_angle_cls=True to detect text orientation
-ocr = PaddleOCR(use_angle_cls=True, lang='en')
+# Initialize PaddleOCR with server models for better accuracy
+# The server models are larger and slower but more accurate than the mobile models
+ocr = PaddleOCR(
+    use_angle_cls=True,
+    lang='en',
+    # Specify server models for detection and recognition
+    det_model_dir=None,  # Will download the server detection model if not specified
+    rec_model_dir=None,  # Will download the server recognition model if not specified
+    cls_model_dir=None,  # Will download the server classification model if not specified
+    use_space_char=True,  # Better handling of spaces
+    use_gpu=True,        # Use GPU if available
+    det_db_score_mode="slow", # Use the "slow" scoring mode for better detection accuracy
+    # Use server version models instead of mobile version
+    det_db_unclip_ratio=2.0, # Higher value leads to larger detection boxes
+    det_limit_side_len=2560, # Higher resolution processing
+    det_limit_type='max',
+    rec_batch_num=6,     # Larger batch size for recognition
+    rec_char_dict_path=None, # Use default dictionary
+    rec_img_h=48,        # Server model uses higher resolution
+)
+
+# Alternative server model configuration, uncomment if above version doesn't work
+# ocr = PaddleOCR(
+#     use_angle_cls=True,
+#     lang='en',  
+#     det='server', # Use server detection model
+#     rec='server', # Use server recognition model
+#     cls='server', # Use server classification model
+#     # Other parameters
+#     use_space_char=True,
+#     use_gpu=True,
+#     det_db_score_mode="slow"
+# )
 
 def detect_text(image_path, min_conf=0):
     """
