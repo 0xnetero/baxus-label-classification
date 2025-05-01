@@ -26,19 +26,6 @@ ocr = PaddleOCR(
     rec_img_h=48,        # Server model uses higher resolution
 )
 
-# Alternative server model configuration, uncomment if above version doesn't work
-# ocr = PaddleOCR(
-#     use_angle_cls=True,
-#     lang='en',  
-#     det='server', # Use server detection model
-#     rec='server', # Use server recognition model
-#     cls='server', # Use server classification model
-#     # Other parameters
-#     use_space_char=True,
-#     use_gpu=True,
-#     det_db_score_mode="slow"
-# )
-
 def detect_text(image_path, min_conf=0):
     """
     Detect and localize text in an image using PaddleOCR.
