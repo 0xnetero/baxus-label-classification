@@ -16,6 +16,12 @@ sudo apt install tesseract-ocr
 pip install -r requirements.txt
 ```
 
+### Instal paddleocr (i'm using CPU)
+
+```bash
+python -m pip install paddlepaddle==3.0.0rc1 -i https://www.paddlepaddle.org.cn/packages/stable/cpu/ 
+```
+
 ## Implementation
 
 The project includes two text detection methods:

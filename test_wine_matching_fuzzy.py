@@ -45,5 +45,17 @@ def test_specific_examples():
     print(f"Confidence score: {confidence3:.4f}")
     print(f"Success: {'✓' if match3 == expected3 else '✗'}")
 
+    tokens4 = ['SMALLBATCH', 'BSUBBON', 'WHISKEY', '4o8.9', '7o5145442 0i5o', 'PEGRLEss']
+    expected4 = "Peerless Bourbon Small Batch"
+    
+    match4, confidence4 = find_best_wine_match_fuzzy(tokens4)
+    
+    print("\n" + "-" * 50)
+    print(f"Input tokens: {tokens4}")
+    print(f"Expected match: {expected4}")
+    print(f"Actual match: {match4}")
+    print(f"Confidence score: {confidence4:.4f}")
+    print(f"Success: {'✓' if match4 == expected4 else '✗'}")
+
 if __name__ == "__main__":
     test_specific_examples() 
