@@ -1,0 +1,380 @@
+[
+  {
+    "image_id": "13089",
+    "ocr_tokens": [
+      "TOASTED BARREL",
+      "ELIJAH",
+      "CRAIG.",
+      "FastcdBarrl",
+      "1789",
+      "KENTUCKY STRAIGHT",
+      "BOURBON WHISKEY",
+      "TOASTED BARREL",
+      "OUR SMALL BATCH BOURBON FINISHED",
+      "in TOASTED NEW OAK BARRELS",
+      "94",
+      "FATHER ofBOURBON",
+      "PROOF:",
+      "47%ALC/VOL",
+      "1789"
+    ],
+    "ground_truth": "Elijah Craig Toasted Barrel",
+    "predicted_match": "Elijah Craig Small Batch",
+    "confidence": 1.0,
+    "is_correct": false
+  },
+  {
+    "image_id": "14303",
+    "ocr_tokens": [
+      "BARREL PROI",
+      "ELIJAH",
+      "CRAIG",
+      "SmallBatch",
+      "KENTUCKY STRAIGHT",
+      "BOURBON WHISKEY",
+      "BARREL PROOF",
+      "UNCUT.STRAIGHT FROMTHE BARREL",
+      "131.0",
+      "65.5%",
+      "C917",
+      "PROOF",
+      "ALC/VOL",
+      "BATCHN"
+    ],
+    "ground_truth": "Elijah Craig Barrel Proof Batch C917",
+    "predicted_match": "Elijah Craig Small Batch",
+    "confidence": 1.0,
+    "is_correct": false
+  },
+  {
+    "image_id": "144",
+    "ocr_tokens": [
+      "SARRELPROOI",
+      "ELIJAH",
+      "CRAIG.",
+      "Small Batch",
+      "1789",
+      "KENTUCKY STRAIGHT",
+      "BOURBON WHISKEY",
+      "BARREL PROOF",
+      "135.2",
+      "67.6%",
+      "A119",
+      "PROOF",
+      "ALC/VOL"
+    ],
+    "ground_truth": "Elijah Craig Barrel Proof Batch A119",
+    "predicted_match": "Elijah Craig Small Batch",
+    "confidence": 1.0,
+    "is_correct": false
+  },
+  {
+    "image_id": "149",
+    "ocr_tokens": [
+      "IOUBLE OAKEI",
+      "BARRELFINISH SELECT",
+      "WOODFORD RESERVE",
+      "DOUBLEOAKED",
+      "DOUBLE",
+      "OAKED",
+      "45.2%ALC/VOL [30.4PRO0F",
+      "KENTUCKY STRAIGHT BOURBON WHISKEYE",
+      "FINISHED INA SECONO OAK BARREL-"
+    ],
+    "ground_truth": "Woodford Reserve Double Oaked",
+    "predicted_match": "Woodford Reserve Bourbon",
+    "confidence": 1.0,
+    "is_correct": false
+  },
+  {
+    "image_id": "1522",
+    "ocr_tokens": [
+      "HELECT",
+      "ESE BARRELS",
+      "AT LEAST",
+      "RUSSELL'S",
+      "RESERVE",
+      "KENTUCKY STRAIGHT BOURBON WHISKET",
+      "10",
+      "YEARS OLDE"
+    ],
+    "ground_truth": "Russell's Reserve 10 Year",
+    "predicted_match": "Widow Jane 10 Year Straight Bourbon",
+    "confidence": 1.0,
+    "is_correct": false
+  },
+  {
+    "image_id": "15345",
+    "ocr_tokens": [
+      "BROWN-FORMAN'S",
+      "KING",
+      "COF KENTUCKY",
+      "KENTUCKY STRAIGHT BOURBON WHISKEY",
+      "SOTTLEN.",
+      "ALCOMOL/VOLUME",
+      "AGE/YEARS",
+      "10",
+      "62.5%",
+      "15",
+      "125PROOF",
+      "750mL",
+      "NON-CHILL FILTERED",
+      "SINGLE BARREL",
+      "LOUISVILLE,KENTUCKY"
+    ],
+    "ground_truth": "King Of Kentucky",
+    "predicted_match": "Rebel 10 Year Single Barrel",
+    "confidence": 1.0,
+    "is_correct": false
+  },
+  {
+    "image_id": "1579",
+    "ocr_tokens": [
+      "ARTFULLYAGED",
+      "BASIL",
+      "HAYDEN'S",
+      "Kentucky Straight",
+      "Bourbon Whiskey",
+      "rafted using the HIGH RYE",
+      "BOU R BON recipe that makes",
+      "Basil Hayden's Bourbon so uniquc.",
+      "this special rekase is aged I0 YEARS,",
+      "adding COMPLEXITY and deeper",
+      "flavor to an already intriguing spirit.",
+      "10",
+      "AGED",
+      "YEARS",
+      "DIST LLED AND BOTTLED BY",
+      "KENTUCKY SPRINGS DISTILLING CO.",
+      "CLERMONT-FRANKFORT,KENTUCKY USA",
+      "750ML 40%ALC./VOL.(80PR00F)"
+    ],
+    "ground_truth": "Basil Hayden's 10 Year",
+    "predicted_match": "Basil Hayden's 10 Year Bourbon",
+    "confidence": 1.0,
+    "is_correct": false
+  },
+  {
+    "image_id": "15984",
+    "ocr_tokens": [
+      "FORESTER",
+      "1870152020",
+      "BATCH PROOF",
+      "OLD",
+      "UNFILTERED",
+      "FORESTER",
+      "KENTUCKY STRAIGHT",
+      "BOURBON WHISKY",
+      "15"
+    ],
+    "ground_truth": "Old Forester 150th Anniversary",
+    "predicted_match": "Old Forester 86 Proof",
+    "confidence": 1.0,
+    "is_correct": false
+  },
+  {
+    "image_id": "16693",
+    "ocr_tokens": [
+      "UNTORYWHIS",
+      "HIBIKI",
+      "SUNTORY WHISKYE",
+      "JAPANESE HARMONY",
+      "A meticalous blend of select handcrafied whikies"
+    ],
+    "ground_truth": "Hibiki Japanese Harmony",
+    "predicted_match": "Hibiki Harmony",
+    "confidence": 1.0,
+    "is_correct": false
+  },
+  {
+    "image_id": "17151",
+    "ocr_tokens": [
+      "ASK STRENGTH"
+    ],
+    "ground_truth": "Rebel Cask Strength Single Barrel",
+    "predicted_match": "Alberta Premium Cask Strength",
+    "confidence": 1.0,
+    "is_correct": false
+  },
+  {
+    "image_id": "17210",
+    "ocr_tokens": [
+      "PENEI",
+      "PENELOPE",
+      "BOURBON",
+      "BARREL",
+      "STRENGTH",
+      "STRAIGHT BOURBONWHISKEY",
+      "FOUR GRAIN",
+      "CORNRYEWHEATMALTED BARLEY",
+      "PROOF:115",
+      "ALCBYVOL575",
+      "TOASTED SERIES"
+    ],
+    "ground_truth": "Penelope Toasted Series",
+    "predicted_match": "Penelope Bourbon Four Grain",
+    "confidence": 1.0,
+    "is_correct": false
+  },
+  {
+    "image_id": "17248",
+    "ocr_tokens": [
+      "FULL PROOF"
+    ],
+    "ground_truth": "Benchmark Full Proof",
+    "predicted_match": "1792 Full Proof",
+    "confidence": 1.0,
+    "is_correct": false
+  },
+  {
+    "image_id": "17309",
+    "ocr_tokens": [
+      "BARREL PROOF",
+      "ELIJAH",
+      "CRAIG.",
+      "SmallBatch",
+      "RENTUCKTSIKAIGHT",
+      "DOURBONWHISKEY",
+      "BARREL PROOF",
+      "UNCUT.STRAIGHT FROM THE BARREL",
+      "WITHOUT CHILL FILTRATION",
+      "PROOFALC/VOL BATCH"
+    ],
+    "ground_truth": "Elijah Craig Barrel Proof Batch C921",
+    "predicted_match": "Elijah Craig Small Batch",
+    "confidence": 1.0,
+    "is_correct": false
+  },
+  {
+    "image_id": "17355",
+    "ocr_tokens": [
+      "OPENELOPE",
+      "PENELOPE",
+      "BOURBON",
+      "STRAIGHT BOURBON WHISKEY",
+      "BARREL STRENGTHE",
+      "CORN.RYEWHEATMALTED BARLEY",
+      "PROOF",
+      "ALC.BY VOL.",
+      "BATCH#",
+      "FOUR GRAIN"
+    ],
+    "ground_truth": "Penelope Bourbon Barrel Strength Four Grain Batch 8",
+    "predicted_match": "Penelope Bourbon Four Grain",
+    "confidence": 1.0,
+    "is_correct": false
+  },
+  {
+    "image_id": "17358",
+    "ocr_tokens": [
+      "2021",
+      "7.12",
+      "SPECIAL",
+      "ENTRY",
+      "RELEASE",
+      "DANIEL'S",
+      "JACK",
+      "UNIQUELY",
+      "JD",
+      "HANDMADE",
+      "CRAFTED",
+      "BARRELS",
+      "SINGLE BARREL",
+      "SpecialRelease",
+      "TENNESSEE",
+      "WHISKEY",
+      "COY HILL HIGHPROOF",
+      "148.3174.15",
+      "OUR BARREL HOUSES ON COY HILL AND",
+      "BOTTLED UNCUT AT HIGHER PROOFS",
+      "#08",
+      "10049156",
+      "BARREL HOUSE",
+      "PROOF",
+      "%ALC/VOL",
+      "#13"
+    ],
+    "ground_truth": "Jack Daniel's Coy Hill Single Barrel",
+    "predicted_match": "Baker's 13 Year Single Barrel",
+    "confidence": 1.0,
+    "is_correct": false
+  },
+  {
+    "image_id": "1736",
+    "ocr_tokens": [
+      "BULLEIT",
+      "BOURBOT",
+      "BOURBON",
+      "BARREL STRENGTE"
+    ],
+    "ground_truth": "Bulleit Bourbon Barrel Strength",
+    "predicted_match": "Bulleit Bourbon",
+    "confidence": 1.0,
+    "is_correct": false
+  },
+  {
+    "image_id": "17378",
+    "ocr_tokens": [
+      "SARREL PROOF",
+      "ELIJAH",
+      "CRAIG.",
+      "Small Batch",
+      "KENTUCKY STRAIGHT",
+      "BOURBON WHISKEY",
+      "BARREL PROOF",
+      "UNCUT.STRAIGHT FROM THE BARREL",
+      "WITHOUT CHILLFILTRATION",
+      "59.12",
+      "8521",
+      "PROOF",
+      "ALC/VOL BATCHN"
+    ],
+    "ground_truth": "Elijah Craig Barrel Proof Batch B521",
+    "predicted_match": "Elijah Craig Small Batch",
+    "confidence": 1.0,
+    "is_correct": false
+  },
+  {
+    "image_id": "17399",
+    "ocr_tokens": [
+      "BARREL PROOI",
+      "ELIJAH",
+      "CRAIG.",
+      "KENTUCKY STRAIGHT",
+      "BOURBON WHISKEY",
+      "BARREL PROOF",
+      "UNCUT.STRAIGHT FROM THE BARREL",
+      "WITHOUT CHILL FILTRATION",
+      "123.6",
+      "PROOFALC/VOL BATCH"
+    ],
+    "ground_truth": "Elijah Craig Barrel Proof Batch A121",
+    "predicted_match": "Elijah Craig Straight Rye Whiskey",
+    "confidence": 1.0,
+    "is_correct": false
+  },
+  {
+    "image_id": "17500",
+    "ocr_tokens": [
+      "150"
+    ],
+    "ground_truth": "Yellowstone Select Landmark Edition",
+    "predicted_match": "Old Forester 150th Anniversary",
+    "confidence": 1.0,
+    "is_correct": false
+  },
+  {
+    "image_id": "17547",
+    "ocr_tokens": [
+      "JOHN E.FITZGERALD",
+      "LARCENY",
+      "KENTUCKY STRAIGHT BOURBON WHISKEY",
+      "BARREL",
+      "PROOF"
+    ],
+    "ground_truth": "Larceny Barrel Proof Batch C921",
+    "predicted_match": "Larceny",
+    "confidence": 1.0,
+    "is_correct": false
+  }
+]
