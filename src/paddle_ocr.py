@@ -26,6 +26,8 @@ ocr = PaddleOCR(
     rec_img_h=48,        # Server model uses higher resolution
 )
 
+SCALE = 1.5
+
 def detect_text(image_path, min_conf=0):
     """
     Detect and localize text in an image using PaddleOCR.
@@ -41,8 +43,21 @@ def detect_text(image_path, min_conf=0):
     if not os.path.exists(image_path):
         raise ValueError(f"Could not read image from {image_path}")
     
-    # Run OCR on the image
-    result = ocr.ocr(image_path, cls=True)
+    # Load the image
+    image = cv2.imread(image_path)
+    if image is None:
+        raise ValueError(f"Could not read image from {image_path}")
+    
+    # Get original dimensions
+    h, w = image.shape[:2]
+    
+    # Upscale the image by 1.5x each dimension
+    new_w = int(w * SCALE)
+    new_h = int(h * SCALE)
+    upscaled_image = cv2.resize(image, (new_w, new_h), interpolation=cv2.INTER_CUBIC)
+    
+    # Run OCR on the upscaled image
+    result = ocr.ocr(upscaled_image, cls=True)
     
     # Extract detected text with confidence above threshold
     detected_text = []
@@ -142,7 +157,7 @@ def get_text_boxes(image_path, min_conf=0):
     if not os.path.exists(image_path):
         raise ValueError(f"Could not read image from {image_path}")
     
-    # Load the image to get dimensions
+    # Load the image
     image = cv2.imread(image_path)
     if image is None:
         raise ValueError(f"Could not read image from {image_path}")
@@ -150,8 +165,13 @@ def get_text_boxes(image_path, min_conf=0):
     # Get original dimensions
     original_h, original_w = image.shape[:2]
     
-    # Run OCR on the image
-    result = ocr.ocr(image_path, cls=True)
+    # Upscale the image by 1.5x each dimension
+    new_w = int(original_w * SCALE)
+    new_h = int(original_h * SCALE)
+    upscaled_image = cv2.resize(image, (new_w, new_h), interpolation=cv2.INTER_CUBIC)
+    
+    # Run OCR on the upscaled image
+    result = ocr.ocr(upscaled_image, cls=True)
     
     # Initialize lists for boxes, texts, and confidences
     boxes = []
@@ -173,9 +193,12 @@ def get_text_boxes(image_path, min_conf=0):
                     # We need to convert to [x, y, w, h] format
                     points = line[0]
                     
+                    # Since we upscaled the image, we need to scale the coordinates back down
+                    scaled_points = [[int(p[0] / SCALE), int(p[1] / SCALE)] for p in points]
+                    
                     # Find the min and max x, y coordinates to create bounding box
-                    x_coords = [point[0] for point in points]
-                    y_coords = [point[1] for point in points]
+                    x_coords = [point[0] for point in scaled_points]
+                    y_coords = [point[1] for point in scaled_points]
                     
                     x = max(0, min(x_coords))
                     y = max(0, min(y_coords))

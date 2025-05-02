@@ -172,7 +172,7 @@ def process_directory_with_tqdm(directory_path, min_conf=0, output_file=None, nu
             pass
     
     # Load checkpoint if it exists
-    checkpoint_file = f"test_output/new_checkpoint_paddle_conf{min_conf}.json"
+    checkpoint_file = f"test_output/scaled_1_5x_checkpoint_paddle_conf{min_conf}.json"
     if os.path.exists(checkpoint_file):
         try:
             with open(checkpoint_file, 'r') as f:
@@ -474,7 +474,7 @@ def main():
         
         try:
             # Set output filename for this confidence level
-            conf_output = f"test_output/new_paddle_fuzzy_results_conf{conf}.json"
+            conf_output = f"test_output/scaled_1_5x_paddle_fuzzy_results_conf{conf}.json"
             
             # Process images with progress bar
             start_time = time.time()
@@ -490,7 +490,7 @@ def main():
             
             # Evaluate results
             start_time = time.time()
-            eval_output = f"test_output/new_paddle_fuzzy_eval_results_conf{conf}.json"
+            eval_output = f"test_output/scaled_1_5x_paddle_fuzzy_eval_results_conf{conf}.json"
             
             tqdm.write(f"Evaluating results with fuzzy matching...")
             eval_results = run_evaluation_fuzzy(conf_output, eval_output, 
@@ -516,7 +516,7 @@ def main():
     
     # Save summary results
     try:
-        with open("test_output/new_paddle_fuzzy_accuracy.json", "w") as f:
+        with open("test_output/scaled_1_5x_paddle_fuzzy_accuracy.json", "w") as f:
             json.dump(results, f, indent=2)
     except Exception as e:
         print(f"Error saving summary results: {e}")
