@@ -3,3 +3,7 @@ results
 test_output
 visualizations
 test_images
+
+predictions
+siamese_data
+best_siamese_model.pth
